@@ -15,6 +15,30 @@ app.json.compact = False
 migrate = Migrate(app, db)
 db.init_app(app)
 
+ma = Marshmallow(app)
+
+class NewsletterSchema(ma.SQLAlchemySchema):
+
+    class Meta:
+        model = Newsletter
+        load_instance = True
+
+        title = ma.auto_field()
+        published_at = ma.auto_field()
+
+        url = ma.Hyperlinks(
+            {
+                "self": ma.URLFor(
+                    'newsletterbyid',
+                    values=dict(id='<id>')),
+                "collection": ma.URLFor('newsletters'),
+            }
+        )
+
+newsletter_schema = NewsletterSchema()
+newsletters_schema = NewsletterSchema(many=True)
+
+
 api = Api(app)
 
 class Index(Resource):
@@ -38,10 +62,10 @@ class Newsletters(Resource):
 
     def get(self):
         
-        response_dict_list = [n.to_dict() for n in Newsletter.query.all()]
+        newsletters = Newsletter.query.all()
 
         response = make_response(
-            response_dict_list,
+            newsletters_schema.dump(newsletters),
             200,
         )
 
@@ -57,7 +81,7 @@ class Newsletters(Resource):
         db.session.add(new_record)
         db.session.commit()
 
-        response_dict = new_record.to_dict()
+        response_dict = newsletters_schema.dump(new_record)
 
         response = make_response(
             response_dict,
@@ -72,10 +96,10 @@ class NewsletterByID(Resource):
 
     def get(self, id):
 
-        response_dict = Newsletter.query.filter_by(id=id).first().to_dict()
+        response_dict = Newsletter.query.filter_by(id=id).first()
 
         response = make_response(
-            response_dict,
+            newsletters_schema.dump(response_dict),
             200,
         )
 
@@ -90,7 +114,7 @@ class NewsletterByID(Resource):
         db.session.add(record)
         db.session.commit()
 
-        response_dict = record.to_dict()
+        response_dict = newsletters_schema.dump(record)
 
         response = make_response(
             response_dict,
